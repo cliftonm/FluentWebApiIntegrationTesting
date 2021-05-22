@@ -8,8 +8,10 @@ namespace Clifton.IntegrationTestWorkflowEngine
     public class WorkflowPacket
     {
         public HttpStatusCode LastResponse { get; set; }
+        public string LastContent { get; set; }
         public string BaseUrl { get; protected set; }
         public Dictionary<string, object> Container = new Dictionary<string, object>();
+        public List<string> CallLog = new List<string>();
 
         public WorkflowPacket(string baseUrl)
         {
@@ -30,6 +32,11 @@ namespace Clifton.IntegrationTestWorkflowEngine
             T ret = Container[containerName] as T;
 
             return ret;
+        }
+
+        public void Log(string msg)
+        {
+            CallLog.Add(msg);
         }
     }
 }

@@ -25,7 +25,7 @@ namespace Clifton.IntegrationTestWorkflowEngine
             return (ret, response.StatusCode, response.Content);
         }
 
-        public static (HttpStatusCode status, string content) Post(string url, object data)
+        public static (HttpStatusCode status, string content) Post(string url, object data = null)
         {
             var response = Execute(Method.POST, url, data);
 

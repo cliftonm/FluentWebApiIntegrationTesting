@@ -24,9 +24,7 @@ namespace FluentWebApiIntegrationTestDemo.Controllers
         [HttpGet("")]
         public object GetStates()
         {
-            var states = stateModel.GetStates();
-
-            return Ok(states);
+            return Ok(stateModel);
         }
 
         [HttpPost("")]
@@ -48,6 +46,14 @@ namespace FluentWebApiIntegrationTestDemo.Controllers
                 () => stateModel.AddCounty(name.StateName, name.CountyName));
 
             return ret;
+        }
+
+        [HttpPost("CleanupTestData")]
+        public object CleanupTestData()
+        {
+            stateModel = new StateModel();
+
+            return Ok();
         }
 
         private object Try<T>(object defaultReturn, Action action)

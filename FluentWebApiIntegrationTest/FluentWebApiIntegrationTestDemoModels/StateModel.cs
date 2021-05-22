@@ -16,28 +16,36 @@ namespace FluentWebApiIntegrationTestDemoModels
 
     public class StateModel
     {
-        protected Dictionary<string, County> stateCounties = new Dictionary<string, County>();
+        // Public for serialization
+        public Dictionary<string, County> StateCounties { get; set; } = new Dictionary<string, County>();
 
         public IEnumerable<string> GetStates()
         {
-            var ret = stateCounties.Select(kvp => kvp.Key);
+            var ret = StateCounties.Select(kvp => kvp.Key);
 
             return ret;
         }
 
+        public IEnumerable<string> GetCounties(string stateName)
+        {
+            Assertion.That<StateModelException>(StateCounties.ContainsKey(stateName), "State does not exist.");
+
+            return StateCounties[stateName];
+        }
+
         public void AddState(string stateName)
         {
-            Assertion.That<StateModelException>(!stateCounties.ContainsKey(stateName), "State already exists.");
+            Assertion.That<StateModelException>(!StateCounties.ContainsKey(stateName), "State already exists.");
 
-            stateCounties[stateName] = new County();
+            StateCounties[stateName] = new County();
         }
 
         public void AddCounty(string stateName, string countyName)
         {
-            Assertion.That<StateModelException>(stateCounties.ContainsKey(stateName), "State does not exists.");
-            Assertion.That<StateModelException>(!stateCounties[stateName].Contains(countyName), "County already exists.");
+            Assertion.That<StateModelException>(StateCounties.ContainsKey(stateName), "State does not exists.");
+            Assertion.That<StateModelException>(!StateCounties[stateName].Contains(countyName), "County already exists.");
 
-            stateCounties[stateName].Add(countyName);
+            StateCounties[stateName].Add(countyName);
         }
     }
 }

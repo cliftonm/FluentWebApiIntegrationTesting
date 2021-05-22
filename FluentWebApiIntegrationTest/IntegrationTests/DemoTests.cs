@@ -12,14 +12,28 @@ using FluentWebApiIntegrationTestDemoModels;
 namespace IntegrationTests
 {
     [TestClass]
-    public class DemoTests
+    public class DemoTests : Setup
     {
+        private WorkflowPacket wp;
+
+        [TestInitialize]
+        public void InitializeTest()
+        {
+            wp = new WorkflowPacket(baseUrl)
+                .CleanupStateTestData()
+                .IShouldSeeOKResponse();
+        }
+
+        [TestCleanup]
+        public void CleanupTest()
+        {
+            wp.PrintLog();
+        }
+
         [TestMethod]
         public void GetTest()
         {
-            string baseUrl = "http://localhost/FluentWebApiIntegrationtestDemo";
-
-            new WorkflowPacket(baseUrl)
+            wp
                 .Home("Demo")
                 .IShouldSeeOKResponse();
         }
@@ -27,9 +41,7 @@ namespace IntegrationTests
         [TestMethod]
         public void FactorialTest()
         {
-            string baseUrl = "http://localhost/FluentWebApiIntegrationtestDemo";
-
-            new WorkflowPacket(baseUrl)
+            wp
                 .Factorial<FactorialResult>("factResult", 6)
                 .IShouldSeeOKResponse()
                 .ThenIShouldSee<FactorialResult>("factResult", r => r.Result.Should().Be(720));
@@ -39,9 +51,7 @@ namespace IntegrationTests
         [TestMethod]
         public void BadFactorialTest()
         {
-            string baseUrl = "http://localhost/FluentWebApiIntegrationtestDemo";
-
-            new WorkflowPacket(baseUrl)
+            wp
                 .Factorial<FactorialResult>("factResult", -1)
                 .IShouldSeeBadRequestResponse();
         }
@@ -49,24 +59,20 @@ namespace IntegrationTests
         [TestMethod]
         public void AddStateTest()
         {
-            string baseUrl = "http://localhost/FluentWebApiIntegrationtestDemo";
-
-            new WorkflowPacket(baseUrl)
+            wp
                 .AddState("NY")
                 .IShouldSeeNoContentResponse()
                 .AddState("CT")
                 .IShouldSeeNoContentResponse()
                 .GetStatesAndCounties("myStates")
-                .IShouldSeeNoContentResponse()
+                .IShouldSeeOKResponse()
                 .ThenIShouldSee<StateModel>("myStates", m => m.GetStates().Count().Should().Be(2));
         }
 
         [TestMethod]
         public void AddDuplicateStateTest()
         {
-            string baseUrl = "http://localhost/FluentWebApiIntegrationtestDemo";
-
-            new WorkflowPacket(baseUrl)
+            wp
                 .AddState("NY")
                 .IShouldSeeNoContentResponse()
                 .AddState("NY")
@@ -76,24 +82,37 @@ namespace IntegrationTests
         [TestMethod]
         public void AddCountyTest()
         {
-            string baseUrl = "http://localhost/FluentWebApiIntegrationtestDemo";
-
-            new WorkflowPacket(baseUrl)
+            wp
                 .AddState("NY")
                 .IShouldSeeNoContentResponse()
                 .AddCounty("NY", "Columbia")
-                .GetStatesAndCounties("myStates")
                 .IShouldSeeNoContentResponse()
+                .GetStatesAndCounties("myStates")
+                .IShouldSeeOKResponse()
                 .ThenIShouldSee<StateModel>("myStates", m => m.GetStates().Count().Should().Be(1))
-                .ThenIShouldSee<StateModel>("myStates", m => m.GetStates().First().Count().Should().Be(1));
+                .ThenIShouldSee<StateModel>("myStates", m => m.GetStates().First().Should().Be("NY"))
+                .ThenIShouldSee<StateModel>("myStates", m => m.GetCounties("NY").Count().Should().Be(1))
+                .ThenIShouldSee<StateModel>("myStates", m => m.GetCounties("NY").First().Should().Be("Columbia"));
+        }
+
+        [TestMethod]
+        public void AddCountyAndAutoCreateStateTest()
+        {
+            wp
+                .AddCounty("NY", "Columbia")
+                .IShouldSeeNoContentResponse()
+                .GetStatesAndCounties("myStates")
+                .IShouldSeeOKResponse()
+                .ThenIShouldSee<StateModel>("myStates", m => m.GetStates().Count().Should().Be(1))
+                .ThenIShouldSee<StateModel>("myStates", m => m.GetStates().First().Should().Be("NY"))
+                .ThenIShouldSee<StateModel>("myStates", m => m.GetCounties("NY").Count().Should().Be(1))
+                .ThenIShouldSee<StateModel>("myStates", m => m.GetCounties("NY").First().Should().Be("Columbia"));
         }
 
         [TestMethod]
         public void AddCountyNoStateTest()
         {
-            string baseUrl = "http://localhost/FluentWebApiIntegrationtestDemo";
-
-            new WorkflowPacket(baseUrl)
+            wp
                 .AddCounty("NY", "Columbia")
                 .IShouldSeeBadRequestResponse();
         }
@@ -101,9 +120,7 @@ namespace IntegrationTests
         [TestMethod]
         public void AddDuplicateCountyTest()
         {
-            string baseUrl = "http://localhost/FluentWebApiIntegrationtestDemo";
-
-            new WorkflowPacket(baseUrl)
+            wp
                 .AddState("NY")
                 .IShouldSeeNoContentResponse()
                 .AddCounty("NY", "Columbia")
