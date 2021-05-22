@@ -1,0 +1,55 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 16
+VisualStudioVersion = 16.0.31112.23
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "FluentWebApiIntegrationTestDemo", "FluentWebApiIntegrationTestDemo.csproj", "{A07F4245-1211-4225-9DD2-7898823C8D4B}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "IntegrationTests", "..\FluentWebApiIntegrationTest\IntegrationTests\IntegrationTests.csproj", "{07E108A4-3BFF-4B93-8F23-C6F7FF7001CD}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Clifton.IntegrationTestWorkflowEngine", "..\FluentWebApiIntegrationTest\Clifton.IntegrationTestWorkflowEngine\Clifton.IntegrationTestWorkflowEngine.csproj", "{822A2E1D-7170-460C-8FAB-EFEA813DA561}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "WorkflowTestMethods", "..\FluentWebApiIntegrationTest\WorkflowTestMethods\WorkflowTestMethods.csproj", "{9F5C947A-4005-4305-9AF0-E9DA649116D2}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "FluentWebApiIntegrationTestDemoModels", "..\FluentWebApiIntegrationTest\FluentWebApiIntegrationTestDemoModels\FluentWebApiIntegrationTestDemoModels.csproj", "{57211D90-8418-4899-A1D5-23DAAB08C0CD}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Clifton.Core.ExtensionMethods", "..\FluentWebApiIntegrationTest\Clifton.Core.ExtensionMethods\Clifton.Core.ExtensionMethods.csproj", "{908CD15C-9E12-4672-BF6A-8A9D1137F90F}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{A07F4245-1211-4225-9DD2-7898823C8D4B}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{A07F4245-1211-4225-9DD2-7898823C8D4B}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{A07F4245-1211-4225-9DD2-7898823C8D4B}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{A07F4245-1211-4225-9DD2-7898823C8D4B}.Release|Any CPU.Build.0 = Release|Any CPU
+		{07E108A4-3BFF-4B93-8F23-C6F7FF7001CD}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{07E108A4-3BFF-4B93-8F23-C6F7FF7001CD}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{07E108A4-3BFF-4B93-8F23-C6F7FF7001CD}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{07E108A4-3BFF-4B93-8F23-C6F7FF7001CD}.Release|Any CPU.Build.0 = Release|Any CPU
+		{822A2E1D-7170-460C-8FAB-EFEA813DA561}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{822A2E1D-7170-460C-8FAB-EFEA813DA561}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{822A2E1D-7170-460C-8FAB-EFEA813DA561}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{822A2E1D-7170-460C-8FAB-EFEA813DA561}.Release|Any CPU.Build.0 = Release|Any CPU
+		{9F5C947A-4005-4305-9AF0-E9DA649116D2}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{9F5C947A-4005-4305-9AF0-E9DA649116D2}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{9F5C947A-4005-4305-9AF0-E9DA649116D2}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{9F5C947A-4005-4305-9AF0-E9DA649116D2}.Release|Any CPU.Build.0 = Release|Any CPU
+		{57211D90-8418-4899-A1D5-23DAAB08C0CD}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{57211D90-8418-4899-A1D5-23DAAB08C0CD}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{57211D90-8418-4899-A1D5-23DAAB08C0CD}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{57211D90-8418-4899-A1D5-23DAAB08C0CD}.Release|Any CPU.Build.0 = Release|Any CPU
+		{908CD15C-9E12-4672-BF6A-8A9D1137F90F}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{908CD15C-9E12-4672-BF6A-8A9D1137F90F}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{908CD15C-9E12-4672-BF6A-8A9D1137F90F}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{908CD15C-9E12-4672-BF6A-8A9D1137F90F}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {C18B0C7F-B92D-4D81-A92C-A39D89C74AB8}
+	EndGlobalSection
+EndGlobal

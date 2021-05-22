@@ -1,0 +1,696 @@
+<html>
+
+<head>
+<meta http-equiv="Content-Language" content="en-us">
+<meta http-equiv="Content-Type" content="text/html; charset=windows-1252">
+<title>Fluent Web API Integration Testi</title>
+</head>
+
+<body>
+
+<p>Fluent Web API Integration Testing</p>
+<h2>Introduction</h2>
+<p>I was reading Pete O'Hanlon's article
+<a href="https://www.codeproject.com/Articles/5287815/Excelsior-Building-Applications-Without-a-Safety-2">
+&quot;Execlsior! Building Applicatons Without a Safety Net - Part 1&quot;</a> and was 
+inspired to finally sit down and write an article on fluent web API integrating 
+testing, something I've been wanting to do for a while!</p>
+<p>For the kind of work that I do, web API integration testing isn't just a 
+simple matter of calling an API and verifying that I get the expected result, 
+rather it's actually a workflow.&nbsp; For example, instead of setting up all 
+the prerequisite data to conduct a single API test, the API itself is enlisted 
+to do help with the data setup.&nbsp; The benefits are:</p>
+<ol>
+	<li>It simplifies the test setup process.</li>
+	<li>It more closely simulates what the user might do or what the front-end 
+	application does for the user.</li>
+	<li>It vets the API for whether it truly supports atomic, if you will, 
+	behavior as opposed to, say, a controller that does a dozen different 
+	things.<ol>
+		<li>Yes, you may still have endpoints that perform complex operations, 
+		but the point is these should be based on more &quot;atomic&quot; methods that 
+		simpler API endpoints can call.</li>
+	</ol>
+	</li>
+	<li>If models are used, it tends to enforce an architecture is which the 
+	models are maintained in a separate assembly that can be shared between the 
+	service implementation and the integration test application.</li>
+	<li>The concept integrates well with <a href="https://fluentassertions.com/">
+	Fluent Assertions</a>, which we'll use here.</li>
+</ol>
+<h2>Concept</h2>
+<p>The concept is very simple:</p>
+<ol>
+	<li>We have an integration test suite (actually implemented using the unit 
+	test framework)...</li>
+	<li>...that calls methods in our &quot;fluent&quot; library...</li>
+	<li>...which calls the desired endpoints...</li>
+	<li>...and we can capture the results.</li>
+</ol>
+<p>The last part &quot;we can capture the results&quot; is the interesting part, as we 
+want to capture:</p>
+<ol>
+	<li>The resulting HTTP status code and text.</li>
+<li>The returned JSON (yes, I'm assuming everything is going to be JSON).</li>
+	<li>Deserialize the JSON if there are no errors in the call.</li>
+	<li>Associate the deserialized object with a label that we can use to 
+	reference it later on.</li>
+</ol>
+<p>This requires that we implement a wrapper class for the test workflow that 
+manages the information described above.&nbsp; I've never been able to come up 
+with a good name for this, so I'll simply call it the &quot;workflow packet.&quot;</p>
+<h2>Setup</h2>
+<h3>Web API Service</h3>
+<p>We'll create a new VS 2019 project:</p>
+<p><img border="0" src="createNewProject.png" width="352" height="84"></p>
+<p>and select:</p>
+<p><img border="0" src="webapi.png" width="525" height="117"></p>
+<p>and I'm going to call the project &quot;FluentWebApiIntegrationTestDemo.&quot;</p>
+<p>Visual Studio 2019 creates the basic template for the web API, including a 
+sample Weather Forecast controller:</p>
+<p><img border="0" src="weather.png" width="243" height="111"></p>
+<p>which I'm going to rename and gut, so it looks simply like this:</p>
+<pre>using System;
+
+using Microsoft.AspNetCore.Mvc;
+
+namespace FluentWebApiIntegrationTestDemo.Controllers
+{
+  [ApiController]
+  [Route(&quot;[controller]&quot;)]
+  public class DemoController : ControllerBase
+  {
+    [HttpGet]
+    public object Get()
+    {
+      throw new NotImplementedException();
+    }
+  }
+}</pre>
+<p>and delete the WeatherForecast.cs file.</p>
+<p>For testing in the browser, the Debug configuration will open the browser on 
+the controller name:</p>
+<p>
+<img border="0" src="config1.png" width="250" height="33"></p>
+<p>and will launch IIS so I don't have to deal with port silliness:</p>
+<p><img border="0" src="config2.png" width="250" height="32"></p>
+<p>We can then run the project (VS will provision IIS the first time, which is 
+awesome), and we see:</p>
+<p><img border="0" src="error1.png" width="796" height="170"></p>
+<p>Great!</p>
+<h3>Demo Integration Tests DLL</h3>
+<p>Next, I'll add an MSTest Test Project (.NET Core) - yes, I'm using the unit 
+test framework to perform integration tests.</p>
+<p><img border="0" src="testproj1.png" width="690" height="247"></p>
+<p>Creating the integration test project resulted in a nightmare of errors:</p>
+<p><img border="0" src="error2.png" width="616" height="223"></p>
+<p>The only &quot;solution&quot; I found was to put the web API project and the 
+integration test project side-by-side:</p>
+<p><img border="0" src="sidebyside.png" width="237" height="47"></p>
+<p>Whatever Visual Studio is doing with projects created in the same folder as 
+the Web Core API project...well, it's doing too much, as the folder structure 
+should not, in my opinion, have anything to do with how the Web Core API project 
+is built.</p>
+<p>I also upgraded the packages:</p>
+<p><img border="0" src="error3.png" width="251" height="97"></p>
+<p>to:</p>
+<p><img border="0" src="nuget1.png" width="233" height="93"></p>
+<p>So finally that builds.</p>
+<p>The initial UnitTest1.cs file that VS creates, I've renamed to &quot;DemoTests&quot; 
+and this stub looks like this:</p>
+<pre>using Microsoft.VisualStudio.TestTools.UnitTesting;
+
+namespace IntegrationTests
+{
+  [TestClass]
+  public class DemoTests
+  {
+    [TestMethod]
+    public void GetTest()
+    {
+    }
+  }
+}</pre>
+<p>Of course, the test doesn't do anything, so we have a successful test!&nbsp; 
+Sorry Pete.</p>
+<p><img border="0" src="pass1.png" width="185" height="107"></p>
+<h3>The Clifton.IntegrationTestWorkflowEngine DLL</h3>
+<p>Because these integration tests can actually be leveraged as &quot;live&quot; 
+workflows, I'm going to create a separate .NET Core Class Library project for 
+managing the fluent integration workflow packet:</p>
+<p><img border="0" src="WorkflowEngine.png" width="419" height="57"></p>
+<p>which at the moment contains just a stub file:</p>
+<pre>namespace Clifton.IntegrationTestWorkflowEngine
+{
+  public class WorkflowPacket
+  {
+  }
+}</pre>
+<p>This seems like overkill to create a DLL with just one class, but we may want 
+to add additional functionality later.&nbsp; The point here is that we want a 
+reusable class that does not allow us to add &quot;domain specific&quot; implementations, 
+thus we create a separate DLL to prevent that.</p>
+<h3>The WorkflowTestMethods DLL</h3>
+<p>And if the above wasn't enough, yes, we're going to create one more .NET Core 
+Class Library DLL to actually contain the workflow methods.&nbsp; This will 
+allow us to use the workflow methods directly in the API if we so choose to 
+expose workflows to the user.&nbsp; Might as well plan ahead rather than 
+refactor later.&nbsp; This DLL <i>is</i> domain specific - it will contain 
+methods for calling endpoints in our demo API service.</p>
+<p>It also has a stub class:</p>
+<pre>namespace WorkflowTestMethods
+{
+  public class ApiMethods
+  {
+  }
+}</pre>
+<h2>Our First Fluent Integration Test</h2>
+<p>After setting up a couple project references, we an write our first fluent 
+integration test:</p>
+<pre>string baseUrl = &quot;<a href="http://localhost/FluentWebApiIntegrationtestDemo">http://localhost/FluentWebApiIntegrationtestDemo</a>&quot;;
+
+new WorkflowPacket(baseUrl)
+  .Home(&quot;Demo&quot;)
+  .IShouldSeeOKResponse();</pre>
+<p>This doesn't compile because we haven't implemented a constructor that takes 
+the base URL nor the supporting methods, 
+but from the syntax with can glean:</p>
+<ol>
+	<li>The fluent methods are extensions on the <code>WorkflowPacket</code></li>
+	<li>Each fluent method returns the <code>WorkflowPacket</code> instance.</li>
+</ol>
+<h3>Refactoring the WorkflowPacket Class</h3>
+<p>Refactoring the <code>WorkflowPacket</code> class:</p>
+<pre>using System.Net;
+
+namespace Clifton.IntegrationTestWorkflowEngine
+{
+  public class WorkflowPacket
+  {
+    public HttpStatusCode LastResponse { get; set; }
+    public string BaseUrl { get; protected set; }
+
+    public WorkflowPacket(string baseUrl)
+    {
+      this.BaseUrl = baseUrl;
+    }
+  }
+}</pre>
+<h3>Refactoring the ApiMethods Class</h3>
+<p>Refactoring the ApiMethods (I also added the FluentAssertions package) class:</p>
+<pre>using FluentAssertions;
+
+using Clifton.IntegrationTestWorkflowEngine;
+using System.Net;
+
+namespace WorkflowTestMethods
+{
+  public static class ApiMethods
+  {
+    public static WorkflowPacket Home(this WorkflowPacket wp, string controller)
+    {
+      return wp; 
+    }
+
+    public static WorkflowPacket IShouldSeeOKResponse(this WorkflowPacket wp)
+    {
+      wp.LastResponse.Should().Be(HttpStatusCode.OK);
+
+      return wp;
+    }
+
+    public static WorkflowPacket IShouldSeeBadRequestResponse(this WorkflowPacket wp)
+    {
+      wp.LastResponse.Should().Be(HttpStatusCode.BadRequest);
+
+      return wp;
+    }
+  }
+}</pre>
+<h3>Test Result</h3>
+<p>We see that the integration test failed (obviously, because we're not calling 
+the endpoint yet):</p>
+<p><img border="0" src="ut2.png" width="179" height="93"></p>
+<p>The amazing thing about about FluentAssertions is that it tells you exactly 
+what the issue is:</p>
+<p><img border="0" src="error5.png" width="373" height="38"></p>
+<h3>Adding the Endpoint Call</h3>
+<p>Using RestSharp (yet another package), which I'm going to wrap in a 
+RestService class and put in the Clifton.IntegrationTestWorkflowEngine (hah! 
+see, I told you we would add more to this DLL!), we have a simple GET API call 
+method:</p>
+<pre>using System.Net;
+
+using RestSharp;
+
+namespace Clifton.IntegrationTestWorkflowEngine
+{
+  public static class RestService
+  {
+    public static (HttpStatusCode status, string content) Get(string url)
+    {
+      var response = Execute(url, Method.GET);
+
+      return (response.StatusCode, response.Content);
+    }
+
+    private static IRestResponse Execute(string url, Method method)
+    {
+      var client = new RestClient(url);
+      var request = new RestRequest(method);
+      var response = client.Execute(request);
+
+      return response;
+    }
+  }
+}</pre>
+<p>We then refactor the <code>ApiMethods.Home</code> method to make the call:</p>
+<pre>public static WorkflowPacket Home(this WorkflowPacket wp, string controller)
+{
+  var resp = RestService.Get($&quot;{wp.BaseUrl}/{controller}&quot;);
+  wp.LastResponse = resp.status;
+
+  return wp; 
+}</pre>
+<h3>Test Result</h3>
+<p>The test still fails, but now we see why:</p>
+<p><img border="0" src="error4.png" width="499" height="42"></p>
+<h3>Refactoring the Endpoint</h3>
+<p>So the last step is to refactor the endpoint so it doesn't throw a 
+<code>NotImplementedException</code> exception but instead returns OK:</p>
+<pre>[HttpGet]
+public object Get()
+{
+  return Ok();
+}</pre>
+<h3>Test Result</h3>
+<p><img border="0" src="ut3.png" width="175" height="92"></p>
+<p>And finally the test passes!</p>
+<h3>Review</h3>
+<p>What have we accomplished?&nbsp; Given this simple example:</p>
+<pre>new WorkflowPacket(baseUrl)
+  .Home(&quot;Demo&quot;)
+  .IShouldSeeOKResponse();</pre>
+<p>We have created the basic framework for:</p>
+<ol>
+	<li>Calling endpoints</li>
+	<li>Verifying status returns</li>
+</ol>
+<p>Let's extend this further to now to work with more &quot;real&quot; API endpoints.</p>
+<h2>Real Endpoint Fluent Integration Tests</h2>
+<p>The purpose here is to be able to pass in some data to an endpoint (query 
+string or serialization) and obtain the result (deserialization) and test the 
+result.&nbsp; So, for example:</p>
+<pre>[TestMethod]
+public void FactorialTest()
+{
+  string baseUrl = &quot;<a href="http://localhost/FluentWebApiIntegrationtestDemo">http://localhost/FluentWebApiIntegrationtestDemo</a>&quot;;
+
+  new WorkflowPacket(baseUrl)
+   .Factorial&lt;FactorialResult&gt;(&quot;factResult&quot;, 6)
+   .IShouldSeeOKResponse()
+   .ThenIShouldSee&lt;FactorialResult&gt;(&quot;factResult&quot;, r =&gt; r.Result.Should().Be(720));
+}
+
+[TestMethod]
+public void BadFactorialTest()
+{
+  string baseUrl = &quot;<a href="http://localhost/FluentWebApiIntegrationtestDemo">http://localhost/FluentWebApiIntegrationtestDemo</a>&quot;;
+
+  new WorkflowPacket(baseUrl)
+    .Factorial&lt;FactorialResult&gt;(&quot;factResult&quot;, -1)
+    .IShouldSeeBadRequestResponse();
+}</pre>
+<p>Note that this implies that the workflow packet now stores the result in the 
+indicated &quot;container&quot;, in this case, &quot;factResult.&quot;</p>
+<p>Also note that I am expecting, in the second test, that an HTTP response of 
+BadRequest will be returned if I try to obtain the factorial of a number less 
+than 1.</p>
+<p>I'm going to put the FactorialResult &quot;model&quot; into another DLL that is shared 
+by both the integration test and the API service:</p>
+<pre>namespace FluentWebApiIntegrationTestDemoModels
+{
+  public class FactorialResult
+  {
+    public decimal Result { get; set; }
+  }
+}</pre>
+<p>Because these are generic methods, we do <i>not</i> add this DLL to the 
+WorkflowTestMethods project.</p>
+<h3>Adding the Generic Get REST API Call</h3>
+<p>Adding the Newtonsoft.Json package, we implement:</p>
+<pre>public static (T item, HttpStatusCode status, string content) Get&lt;T&gt;(string url) where T : new()
+{
+  var response = Execute(url, Method.GET);
+  T ret = TryDeserialize&lt;T&gt;(response);
+
+  return (ret, response.StatusCode, response.Content);
+}
+
+private static T TryDeserialize&lt;T&gt;(IRestResponse response) where T : new()
+{
+  T ret = new T();
+  int code = (int)response.StatusCode;
+
+  if (code &gt;= 200 &amp;&amp; code &lt; 300)
+  {
+    ret = JsonConvert.DeserializeObject&lt;T&gt;(response.Content);
+  }
+
+  return ret;
+}</pre>
+<h3>Adding the Workflow API Call Method</h3>
+<p>Here, the endpoint to the <code>Factorial</code> method in the <code>Math</code> controller, is 
+hard-coded, which I think is perfectly fine because the description of the API 
+call method should be specific so that the integration test is readable <i>by 
+its method name</i> not by its parameters.</p>
+<pre>public static WorkflowPacket Factorial&lt;T&gt;(this WorkflowPacket wp, string containerName, int n) where T: new()
+{
+  var resp = RestService.Get&lt;T&gt;($&quot;{wp.BaseUrl}/Math/Factorial?n={n}&quot;);
+  wp.LastResponse = resp.status;
+  wp.Container[containerName] = resp.item;
+
+  return wp;
+}
+
+public static WorkflowPacket ThenIShouldSee&lt;T&gt;(this WorkflowPacket wp, string containerName, Action&lt;T&gt; test) where T : class
+{
+  T obj = wp.GetObject&lt;T&gt;(containerName);
+  test(obj);
+
+  return wp;
+}</pre>
+<p>Notice that I've now added the concept of containers to the WorkflowPacket, 
+such that I can add objects to the container and return the container object, 
+cast to the specified type.</p>
+<pre>public Dictionary&lt;string, object&gt; Container = new Dictionary&lt;string, object&gt;();
+...
+public T GetObject&lt;T&gt;(string containerName) where T: class
+{
+  Container.Should().ContainKey(containerName);
+  T ret = Container[containerName] as T;
+
+  return ret;
+}</pre>
+<p>Of course the test fails because I haven't implemented that <code>Math</code> controller with the <code>Factorial</code> 
+method, so let's do that now as a stub:</p>
+<pre>[ApiController]
+[Route(&quot;[controller]&quot;)]
+public class MathController : ControllerBase
+{
+  [HttpGet(&quot;Factorial&quot;)]
+  public object Factorial([FromQuery, BindRequired] int n)
+  {
+    return Ok(new FactorialResult());
+  }
+}</pre>
+<p>Again, the test fails, but we see:</p>
+<p><img border="0" src="ut4.png" width="334" height="41"></p>
+<p>So let's actually implement the factorial computation:</p>
+<pre>[ApiController]
+[Route(&quot;[controller]&quot;)]
+public class MathController : ControllerBase
+{
+  [HttpGet(&quot;Factorial&quot;)]
+  public object Factorial([FromQuery, BindRequired] int n)
+  {
+    object ret;
+
+    if (n &lt;= 0)
+    {
+      ret = BadRequest(&quot;Value must be &gt;= 1&quot;);
+    }
+    else
+    {
+      decimal factorial = 1;
+      n.ForEach(i =&gt; factorial = factorial * i, 1);
+
+      ret = Ok(new FactorialResult() { Result = factorial });
+    }
+
+    return ret;
+  }
+}</pre>
+<p>(Yes, I like my extension methods.)&nbsp; Note how I specifically coded a 
+test to make sure <code>n</code> is greater than 0.</p>
+<p>And we see:</p>
+<p><img border="0" src="ut5.png" width="172" height="64"></p>
+<h3>Review</h3>
+<p>Given this integration test:</p>
+<pre>new WorkflowPacket(baseUrl)
+   .Factorial&lt;FactorialResult&gt;(&quot;factResult&quot;, 6)
+   .IShouldSeeOKResponse()
+   .ThenIShouldSee&lt;FactorialResult&gt;(&quot;factResult&quot;, r =&gt; r.Result.Should().Be(720));</pre>
+<p>and barring the fact that we unfortunately have to over-specify the generics, 
+we see that we can:</p>
+<ol>
+	<li>Make an API endpoint call with a query parameter.</li>
+	<li>Deserialize the result.</li>
+	<li>Verify the result.</li>
+</ol>
+<h3>Failure Testing</h3>
+<p>We also implemented a simple integration test that verifies that the API 
+gracefully handles bad input with a simple workflow:</p>
+<pre> new WorkflowPacket(baseUrl)
+  .Factorial&lt;FactorialResult&gt;(&quot;factResult&quot;, -1)
+  .IShouldSeeBadRequestResponse();
+</pre>
+<h3>Using dynamic to Reduce Generic Parameter Specification</h3>
+<p>If we wanted to use the dynamic feature of C# (though we lose Intellisense), we could, with a slightly 
+different workflow method, write:</p>
+<pre>.ThenIShouldSee(&quot;factResult&quot;, r =&gt; r.Result.Should().Be(720));</pre>
+<p>Except that we get an exception from the runtime binder:</p>
+<p><img border="0" src="error6.png" width="791" height="57"></p>
+<p>We could implement a dynamic <code>ThenIShouldSee</code> like this:</p>
+<pre>public static WorkflowPacket ThenIShouldSee(this WorkflowPacket wp, string containerName, Func&lt;dynamic, bool&gt; test)
+{
+  var obj = wp.GetObject(containerName);
+  var b = test(obj);
+  b.Should().BeTrue();
+
+  return wp;
+}
+</pre>
+<p>with the test written as:</p>
+<pre>.ThenIShouldSee(&quot;factResult&quot;, r =&gt; r.Result == 720M);</pre>
+<p>but then look what happens:</p>
+<p><img border="0" src="error7.png" width="776" height="62"></p>
+<p>What?&nbsp; It turns out that <code>var b</code>, even though we and the complier know b is of type <code>bool</code>, 
+does not work well with FluentAssertions.&nbsp; We actually have to write <code>bool b</code> for FluentAssertions to work!</p>
+<h2>Going Further - POST and using JSON Body</h2>
+<p>It's more typical in an integration test to emulate several activities that 
+the user might perform.&nbsp; For this example, we'll create some tests that, if 
+there was a UI, would let the user enter states and counties for each state, and 
+view the counties by state.&nbsp; A simple set of endpoints which I'll implement 
+directly in memory -- I won't even use an in-memory database!&nbsp; Granted, 
+this is a somewhat contrived example, but it illustrates more interesting 
+integration tests.</p>
+<h3>A Simple In-Memory State-County Model</h3>
+<p>I'm going to move away from Test-Driven Development (TDD) and do what feels 
+more natural to me when I'm writing fairly simple code -- just write the 
+implementation and then write the tests to verify the implementation.&nbsp; I 
+call this Test-Later Coding - TLC, hahaha.&nbsp; Here's the model, and note how 
+I code specific exceptions in the model:</p>
+<pre>namespace FluentWebApiIntegrationTestDemoModels
+{
+  public class StateModelException : Exception
+  {
+    public StateModelException() { } 
+    public StateModelException(string msg) : base(msg) { }
+  }
+
+  public class County : List&lt;string&gt; { }
+
+  public class StateModel
+  {
+    protected Dictionary&lt;string, County&gt; stateCounties = new Dictionary&lt;string, County&gt;();
+
+    public IEnumerable&lt;string&gt; GetStates()
+    {
+      var ret = stateCounties.Select(kvp =&gt; kvp.Key);
+
+      return ret;
+    }
+
+    public void AddState(string stateName)
+    {
+      Assertion.That&lt;StateModelException&gt;(!stateCounties.ContainsKey(stateName), &quot;State already exists.&quot;);
+
+      stateCounties[stateName] = new County();
+    }
+    
+    public void AddCounty(string stateName, string countyName)
+    {
+      Assertion.That&lt;StateModelException&gt;(stateCounties.ContainsKey(stateName), &quot;State does not exists.&quot;);
+      Assertion.That&lt;StateModelException&gt;(!stateCounties[stateName].Contains(countyName), &quot;County already exists.&quot;);
+
+      stateCounties[stateName].Add(countyName);
+    }
+  }
+}</pre>
+<p>We want to assert for expected conditions in the model, not the controller, 
+so that the model may be re-used with all its validation.</p>
+<h3>The State Controller</h3>
+<p>Here's the controller:</p>
+<pre>[ApiController]
+[Route(&quot;[controller]&quot;)]
+public class StateController : ControllerBase
+{
+  public static StateModel stateModel  = new StateModel();
+
+  [HttpGet(&quot;&quot;)]
+  public object GetStates()
+  {
+    var states = stateModel.GetStates();
+
+    return Ok(states);
+  }
+
+  [HttpPost(&quot;&quot;)]
+  public object AddState([FromBody] string stateName)
+  {
+    object ret = Try&lt;StateModelException&gt;(
+      NoContent(), 
+      () =&gt; stateModel.AddState(stateName));
+
+    return ret;
+  }
+
+  [HttpPost(&quot;{stateName}/County&quot;)]
+  public object AddCounty(
+  [FromRoute, BindRequired] string stateName,
+  [FromBody] string countyName)
+  {
+    object ret = Try&lt;StateModelException&gt;(
+      NoContent(), 
+      () =&gt; stateModel.AddCounty(stateName, countyName));
+
+    return ret;
+  }
+}</pre>
+<p>Because I really don't like to repeat myself and I also don't like to clutter 
+my code with <code>try-catch</code> blocks and if possible, <code>if-else</code> statements, 
+I created a helper function that if we see the expected exception from the 
+model, then return a bad request, otherwise throw the exception and let the 
+framework return an internal server error.&nbsp; This code illustrates that most 
+API methods should really be doing very simple things that have a limited set of 
+exceptions.&nbsp; While more complicated API endpoints will have the possibility 
+of throwing a variety of exceptions, I bring this up here more as a talking / 
+discussion point than as a guidance.&nbsp; The point for me, when I teach 
+software development / architecture, is to get people to think about questions 
+they should be asking rather than just diving into robotic coding.</p>
+<pre>private object Try&lt;T&gt;(object defaultReturn, Action action)
+{
+  object ret = defaultReturn;
+
+  try
+  {
+    action();
+  }
+  catch (Exception ex)
+  {
+    if (ex.GetType().Name == typeof(T).Name)
+    {
+      ret = BadRequest(ex.Message);
+    }
+    else
+    {
+      throw;
+    }
+  }
+
+  return ret;
+}</pre>
+<h3>New Fluent API Endpoint Methods</h3>
+<p>I've added 3 more fluent methods.&nbsp; With regards to the first one, it 
+does seem a bit absurd to decouple the class definition that will hold the 
+result from the method endpoint call.&nbsp; Yes, there are times when you want 
+to deserialize only specific key-values of the return data, and then there are 
+times like this, where it makes more sense to just have the fluent endpoint 
+method &quot;know&quot; into what the model is that the data goes.&nbsp; Such is the case 
+here.</p>
+<pre>public static WorkflowPacket GetStatesAndCounties(this WorkflowPacket wp, string containerName)
+{
+  var resp = RestService.Get&lt;StateModel&gt;($&quot;{wp.BaseUrl}/States&quot;);
+  wp.LastResponse = resp.status;
+  wp.Container[containerName] = resp.item;
+
+  return wp;
+}
+
+public static WorkflowPacket AddState(this WorkflowPacket wp, string stateName)
+{
+  var resp = RestService.Post($&quot;{wp.BaseUrl}/State&quot;, new { stateName });
+  wp.LastResponse = resp.status;
+
+  return wp;
+}
+
+public static WorkflowPacket AddCounty(this WorkflowPacket wp, string stateName, string countyName)
+{
+   var resp = RestService.Post($&quot;{wp.BaseUrl}/State/${stateName}/County&quot;, new { countyName });
+  wp.LastResponse = resp.status;
+
+  return wp;
+}</pre>
+<h3>The Integration Tests</h3>
+<p>Now we can write positive and negative integration tests:</p>
+<p>&nbsp;</p>
+<h3>Running the Tests</h3>
+<p>We have a problem with the simplest integration test, adding a state.</p>
+<p><img border="0" src="error8.png" width="145" height="47"></p>
+<p>Looking at the response in Postman, we see:</p>
+<pre>&quot;The JSON value could not be converted to System.String. Path: $ | LineNumber: 0 | BytePositionInLine: 1.&quot;</pre>
+<p>Oops.&nbsp; The reason is obvious -- I implemented the body parameter as a 
+string, not a class.&nbsp; It also seems reasonable then to change not just the 
+endpoint for adding the state, but also adding a county to the state:</p>
+<pre>public class StateCountyName
+{
+  public string StateName { get; set; }
+  public string CountyName { get; set; }
+}
+
+[HttpPost(&quot;&quot;)]
+public object AddState([FromBody] StateCountyName name)
+{
+  object ret = Try&lt;StateModelException&gt;(
+    NoContent(), 
+    () =&gt; stateModel.AddState(name.StateName));
+
+  return ret;
+}
+
+[HttpPost(&quot;County&quot;)]
+public object AddCounty(
+  [FromBody] StateCountyName name)
+{
+  object ret = Try&lt;StateModelException&gt;(
+    NoContent(), 
+    () =&gt; stateModel.AddCounty(name.StateName, name.CountyName));
+
+  return ret;
+}</pre>
+<p>Yes, we could add validation for null values and empty strings, but I'm not 
+going to bore you with those details.</p>
+<p>&nbsp;</p>
+<p>&nbsp;</p>
+<h3>Review</h3>
+<h2>The Drawback of Fluency</h2>
+<p>The problem with a fluent API (not the endpoint API!) is that if an exception 
+occurs you don't really know where you are in the chain of method calls.&nbsp; 
+To fix this, we can implement a list of the method calls so that when a failure 
+occurs, we can display to the developer where in the method chain the failure 
+occurred.</p>
+<p>&nbsp;</p>
+<h2>Conclusion - What is the Pattern?</h2>
+<p>The pattern for this approach is:</p>
+<p>&nbsp;</p>
+<p>&nbsp;</p>
+<p>&nbsp;</p>
+<p>&nbsp;</p>
+<p>&nbsp;</p>
+<p>&nbsp;</p>
+
+</body>
+
+</html>

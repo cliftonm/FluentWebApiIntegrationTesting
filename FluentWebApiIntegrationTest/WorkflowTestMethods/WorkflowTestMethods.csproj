@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>netcoreapp3.1</TargetFramework>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="FluentAssertions" Version="5.10.3" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Clifton.IntegrationTestWorkflowEngine\Clifton.IntegrationTestWorkflowEngine.csproj" />
+    <ProjectReference Include="..\FluentWebApiIntegrationTestDemoModels\FluentWebApiIntegrationTestDemoModels.csproj" />
+  </ItemGroup>
+
+</Project>
